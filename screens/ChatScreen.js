@@ -1,25 +1,19 @@
-import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Text, TouchableOpacity, ScrollView, FlatList, Image, TextInput, Modal, KeyboardAvoidingView } from 'react-native'
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, FlatList, TextInput, Modal, StyleSheet } from 'react-native'
 import { getAllMessages, getAllParticipants, postMessage } from "../axios/api";
-import { useDispatch, useSelector } from "react-redux";
-import { getAllMessagesAction, getAllParticipantsAction } from "../redux/slices/messagesSlice";
-import { SCREEN_HEIGHT, SCREEN_WIDTH, windowHeight, windowWidth } from "../utilities/appConstants";
+import {Colors, fontSizes, SCREEN_WIDTH, Strings, windowHeight, windowWidth } from "../utilities/appConstants";
 import moment from "moment";
 import { useStore } from "../zustand/store";
+import BottomSheet from "../components/BottomSheet";
+import MessageView from "../components/MessageView";
+import { Icons } from "../assets/icons/Icons.js"
 
 const ChatScreen = () => {
-    const Dispatch = useDispatch()
-    // const { allMessages, allParticipants } = useSelector(state => state.messages)
     const [showBottomSheet, setShowBottomSheet] = useState({show: false, activeMessageIndex: 0, source: ''})
     const [userInput, setUserInput] = useState('')
     const [showSuggestions, setShowSuggestions] = useState(false)
     const [suggestions, setSuggestions] = useState([])
-    const {allMessages, allParticipants, getAllMessages: getAllMessagesAction , getAllParticipants: getAllParticipantsAction} = useStore(state => state)
-    
-    // console.log(allMessages.slice(0, 2), allParticipants.slice(0, 1), showBottomSheet, suggestions, 'herses')
-
-    console.log(allMessages.find(item => item.reactions.length), 'hesses');
-    
+    const {allMessages, allParticipants, getAllMessages: getAllMessagesAction, getAllParticipants: getAllParticipantsAction} = useStore(state => state)
 
     const sendMessage = async () => {
         await postMessage(userInput)
@@ -28,11 +22,11 @@ const ChatScreen = () => {
     }
 
     const fetchData = async () => {
-        const response = await getAllMessages()
-        const responseTwo = await getAllParticipants()
+        const messageResponse = await getAllMessages()
+        const participantResponse = await getAllParticipants()
 
-        if(response) getAllMessagesAction({allMessages: response})
-        if(responseTwo) getAllParticipantsAction({allParticipants: responseTwo})
+        if(messageResponse) getAllMessagesAction({allMessages: messageResponse})
+        if(participantResponse) getAllParticipantsAction({allParticipants: participantResponse})
     }
 
     const handleMentionSelect = (userName) => {
@@ -42,16 +36,12 @@ const ChatScreen = () => {
         setShowSuggestions(false)
     };
 
-    const renderSuggestions = ({item}) => {
-        return(
-            <TouchableOpacity onPress={() => handleMentionSelect(item)} style={{padding: 10}}><Text>{item}</Text></TouchableOpacity>
-        )
-    }
+    const renderSuggestions = ({item}) => <TouchableOpacity onPress={() => handleMentionSelect(item)} style={{padding: 10}}><Text>{item}</Text></TouchableOpacity>
 
     const handleInputChange = (text) => {
         setUserInput(text);
-      
         const lastWord = text.split(' ').pop()
+      
         if(lastWord.startsWith('@')) {
           setShowSuggestions(true);
           
@@ -61,128 +51,57 @@ const ChatScreen = () => {
         else setShowSuggestions(false)
       };
 
-    const renderBottomSheet = ({item}) => {
-        return(
-            <View style={{flexDirection: 'row'}}>
-                <Image source={{uri: item.avatarUrl}} style={{height: windowHeight(30), width: windowWidth(30), borderRadius: 30}} resizeMode="stretch"/>
-                <Text>{item.name}</Text>
-                <Text>{item.value}</Text>
-            </View>
-        )
-    }
-
-    const BottomSheet = () => {
-        const activeMessage = allMessages[showBottomSheet.activeMessageIndex]
-        return(
-            <View style={{zIndex: 1, height: SCREEN_HEIGHT/3, width: SCREEN_WIDTH, borderWidth: 1, backgroundColor: 'white', position: 'absolute', bottom: 0, flex: 1}}>
-                {showBottomSheet.source === "reaction" ?
-                <FlatList data={activeMessage.reactions} renderItem={renderBottomSheet} keyExtractor={(_, index) => index.toString()}/>
-                : showBottomSheet.source === "name" ?
-                <View>
-                    <Text>{activeMessage.name}</Text>
-                    <Text>{activeMessage.bio}</Text>
-                    <Text>{activeMessage.jobTitle}</Text>
-                    <Text>{activeMessage.email}</Text>
-                </View>
-                :
-                <View style={{alignItems: 'center', marginTop: windowHeight(20)}}>
-                <Image source={{uri: activeMessage.avatarUrl}} style={{height: windowHeight(170), width: windowWidth(190), borderRadius: 100}} resizeMode="stretch"/>
-                </View>
-                 }
-            </View>
-        )
-    }
-
     const renderAllMessages = ({item, index}) => {
         const isSameAuthor = index && item.authorUuid === allMessages[index-1].authorUuid
         const notSameDay = index && !(moment(item.sentAt).isSame(allMessages[index-1].sentAt, 'day'))
-        return(
-            <>
-            {index === 1 &&
-            <View style={{}}>
-                <Text style={{textAlign: 'center'}}>{moment(item.sentAt).format("MMMM DD, yyyy")}</Text>
-            </View>
-            }
-            <View style={{borderRadius: 10, padding: 5, paddingBottom: windowHeight(15), marginBottom: windowHeight(10),
-                marginTop: windowHeight(isSameAuthor ? -5 : 10), marginLeft: windowWidth(45), width: SCREEN_WIDTH/1.5, borderWidth: 1}}>
-                {item.replyToMessage &&
-                    <View style={{borderRadius: 12, borderWidth: 1, width: "95%", marginVertical: windowHeight(5), alignSelf: 'center', padding: 5}}>
-                        <Text>
-                            {item.replyToMessage.name}
-                        </Text>
-                        <Text>
-                            {item.replyToMessage.text}
-                        </Text>
-                    </View>
-                }
-                
-                {isSameAuthor ? null
-                :
-                <TouchableOpacity onPress={() => setShowBottomSheet({show: true, activeMessageIndex: index, source: 'profileImage'})} style={{position: 'absolute', left: windowWidth(-35)}}>
-                    <Image source={{uri: item.avatarUrl}} style={{height: windowHeight(30), width: windowWidth(30), borderRadius: 30}} resizeMode="stretch"/>
-                </TouchableOpacity>
-                }
-                
-                <View>
-                    {!isSameAuthor && <TouchableOpacity onPress={() => setShowBottomSheet({show: true, activeMessageIndex: index, source: 'name'})}><Text>{item.name}</Text></TouchableOpacity>}
-                    {/* {item.attachments.length &&
-                    <Image source={{uri: item.attachments[0].url}} style={{height: windowHeight(200), width: windowWidth(240), borderRadius: 12}} resizeMode="cover"/>
-                    } */}
-                    <Text>{item.text}</Text>
-                </View>
-
-                
-                <View style={{position: 'absolute', right: windowWidth(5), bottom: 0}}>
-                    <Text>{item.edited ? "Edited " + moment(item.sentAt).format("hh:mm a") : moment(item.sentAt).format("hh:mm a")}</Text>
-                </View>
-
-                {item.reactions.length &&
-                <TouchableOpacity onPress={() => setShowBottomSheet({show: true, activeMessageIndex: index, source: 'reaction'})} style={{position: 'absolute', bottom: 0, left: 0}}>
-                    <Text>{item.reactions.map(item => item.value)}</Text>
-                </TouchableOpacity>
-                }
-            </View>
-            </>
-        )
+        
+        return <MessageView item={item} index={index} isSameAuthor={isSameAuthor} notSameDay={notSameDay} setShowBottomSheet={setShowBottomSheet}/>
     }
     
     return(
-        <View style={{flex: 1, backgroundColor: 'white'}}>
-            {/* <KeyboardAvoidingView keyboardVerticalOffset={500} style={{flex: 1, backgroundColor: 'white'}}> */}
-            <TouchableOpacity style={{marginTop: 50}} onPress={fetchData}><Text>Populate</Text></TouchableOpacity>
-            {/* <ScrollView nestedScrollEnabled style={{flex: 1, backgroundColor: 'white'}}> */}
-                <View style={{marginBottom: windowHeight(50), flex: 1, backgroundColor: 'white'}}>
-                <FlatList data={allMessages} onRefresh={fetchData} refreshing={false}
-                    renderItem={renderAllMessages} keyExtractor={(_, index) => index.toString()}/>
-                </View>
-                {showBottomSheet.show && (
-                    <Modal
-                    visible={showBottomSheet.show}
-                    transparent={true}
-                    animationType="slide"
-                    onRequestClose={() => setShowBottomSheet({show: false, activeMessageIndex: 0, source: ''})}
-                    hardwareAccelerated={true}
-                    >
-                        <BottomSheet/>
-                    </Modal>
-                )}
-            {/* </ScrollView> */}
+        <View style={styles.mainView}>
+            <TouchableOpacity style={{paddingHorizontal: windowWidth(20), paddingVertical: windowHeight(15), flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.messageBG, marginTop: windowHeight(25)}} onPress={fetchData}>
+                <Icons.groupSvg width={windowWidth(30)} height={windowHeight(25)}/>
+                <Text style={{fontFamily: Strings.latoBold, color: Colors.replyName, fontSize: fontSizes.FONT20, marginLeft: windowWidth(15)}}>Tribe</Text>
+            </TouchableOpacity>
+                
+            <View style={styles.messageListView}>
+                <FlatList data={allMessages} onRefresh={fetchData} refreshing={false} renderItem={renderAllMessages} keyExtractor={(_, index) => index.toString()}/>
+            </View>
             
-            <View style={{position: 'absolute', bottom: 0, flexDirection: 'row', alignItems: 'center', left: 0, right: 0, height: windowHeight(45), borderWidth: 1, backgroundColor: 'white'}}>
-                <View style={{borderRadius: 12, borderWidth: 1, marginLeft: windowWidth(20), width: SCREEN_WIDTH/1.5, height: windowHeight(35)}}>
+            <Modal visible={showBottomSheet.show} transparent={true} animationType="slide" hardwareAccelerated={true}
+                onRequestClose={() => setShowBottomSheet({show: false, activeMessageIndex: 0, source: ''})}>
+                    <BottomSheet allMessages={allMessages} showBottomSheet={showBottomSheet} setShowBottomSheet={setShowBottomSheet}/>
+            </Modal>
+            
+            <View style={styles.footerView}>
+                <View style={styles.inputView}>
                     {suggestions.length && showSuggestions &&
-                    <View style={{position: 'absolute', bottom: windowHeight(35), left: 0, padding: 10, borderRadius: 12, borderWidth: 1, width: SCREEN_WIDTH/1.5, backgroundColor: 'white'}}>
+                    <View style={styles.suggestionListView}>
                         <FlatList data={suggestions} renderItem={renderSuggestions} keyExtractor={(_, index) => index.toString()}/>
-                    </View>}
-                    <TextInput value={userInput} onChangeText={handleInputChange} style={{}} placeholder="Message"/>
+                    </View>
+                    }
+
+                    <TextInput value={userInput} style={{paddingLeft: windowWidth(20), fontFamily: Strings.latoRegular, color: Colors.white}} placeholderTextColor={Colors.placeholder} onChangeText={handleInputChange} placeholder="Message"/>
                 </View>
-                <TouchableOpacity disabled={!userInput} onPress={sendMessage} style={{padding: 5, borderRadius: 30, marginLeft: windowWidth(20)}}>
-                    <Text>send</Text>
+                
+                <TouchableOpacity disabled={!userInput} onPress={sendMessage} style={styles.sendTouch}>
+                    <Icons.sendSvg width={windowWidth(20)} height={windowHeight(20)}/>
                 </TouchableOpacity>
             </View>
-            {/* </KeyboardAvoidingView> */}
         </View>
     )
 }
+
+const styles = StyleSheet.create({
+    mainView: {flex: 1, backgroundColor: Colors.background},
+    messageListView: {marginBottom: windowHeight(50), flex: 1, backgroundColor: Colors.background},
+    footerView: {position: 'absolute', bottom: 0, flexDirection: 'row', alignItems: 'center', left: 0, right: 0, height: windowHeight(45), borderWidth: 1,
+        backgroundColor: Colors.messageBG},
+    inputView: {borderRadius: 12, borderWidth: 1, marginLeft: windowWidth(30), width: SCREEN_WIDTH/1.4, height: windowHeight(35), backgroundColor: Colors.textInput},
+    suggestionListView: {position: 'absolute', bottom: windowHeight(35), left: 0, padding: 10, borderRadius: 12, borderWidth: 1, width: SCREEN_WIDTH/1.5,
+        backgroundColor: Colors.background},
+    sendTouch: {padding: 5, borderRadius: 30, marginLeft: windowWidth(20)}
+})
 
 export default ChatScreen

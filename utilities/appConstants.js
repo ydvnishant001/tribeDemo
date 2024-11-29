@@ -53,3 +53,21 @@ export const fontSizes = {
   FONT100: windowWidth(100),
   FONT120: windowWidth(120),
 };
+
+export const Strings = {
+  latoRegular: 'Lato-Regular',
+  latoBold: 'Lato-Bold'
+}
+
+export const Colors = {
+  background: "#0A141A",
+  white: "#ffffff",
+  grey: "#A6ABAD",
+  messageBG: "#1F2C33",
+  textInput: "#2A3942",
+  placeholder: "#8696A0",
+  replyText: "#1D282F",
+  secondaryColor: "#5856D6",
+  replyMessage: "#A4A9AB",
+  replyName: "#52BDEB"
+}
